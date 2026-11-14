@@ -1272,7 +1272,7 @@ body.land .modal.result .mb>.rmstrip{grid-column:1/-1}body.land .modal.result .r
 
 <script>
 'use strict';
-const VERSION='v11.1.0 (测试版 · 2026-11-05)';
+const VERSION='v11.2.0 (测试版 · 2026-11-14)';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const DBG=window.__AVA={fast:false,auto:false,errors:[],said:[],chat:[]};
@@ -2036,7 +2036,9 @@ function joinConfirm(game,ri){
  if(!Wallet.isSet())return testBalanceModal('开始游戏前，请先设置测试余额');
  if(Wallet.getBalance()<r.fee)return lackModal(game,ri);
  const e=econLines(game,r.fee),gn=game==='ddz'?'斗地主':'麻将';
- modal('确认入场',`<div style="text-align:center;font-size:16px;font-weight:800;letter-spacing:2px">${gn} · ${r.name}</div><div class="brk" style="margin-top:10px;line-height:1.9"><div><span>入场费（仅真人玩家支付）</span><span>${AVS(fmt(r.fee))}</span></div><div><span>奖池 = 真人玩家入场费之和</span><span>${AVS(fmt(e.pot))}</span></div>${game==='ddz'?`<div><span>我当地主获胜</span><span class="pos">${AVS(fmt(e.win))}</span></div><div><span>我当农民获胜（与 AI 农民平分，AI 份额销毁）</span><span class="pos">${AVS(fmt(e.farm))}</span></div>`:`<div><span>我胡牌：获得 50%</span><span class="pos">${AVS(fmt(e.win))}</span></div>`}<div><span>销毁（我方胜 / AI 胜）</span><span class="neg">🔥 ${AVS(fmt(e.burnW))} / ${AVS(fmt(e.burnL))}</span></div></div><div style="font-size:12px;margin-top:8px;color:var(--txt2);text-align:center;line-height:1.6">匹配成功后才扣除入场费，取消匹配不扣费。<br>AI 机器人座位不出入场费、也不分奖池；奖池 50% 永久销毁，另 50% 按获胜方座位平分（向下取整），落在 AI 座位上的份额与余数一并销毁；若 AI 获胜则这 50% 也销毁。${game==='mj'?'<br>流局：50% 销毁，50% 平均退还真人玩家。':''}<br>当前余额 ${AVS(fmt(Wallet.getBalance()))}</div>`,
+ if(game==='ddz')return modal('确认入场',`<div style="text-align:center;font-size:16px;font-weight:800;letter-spacing:2px">${gn} · ${r.name}</div>${ddzConfirmBox(r.fee)}<div style="font-size:12px;margin-top:8px;color:var(--txt2);text-align:center;line-height:1.6">匹配成功后才扣除入场费，取消匹配不扣费。<br>AI 不出入场费、不分奖池。只要桌上有 AI，真人不论输赢都拿回自己的入场费。<br>当前余额 ${AVS(fmt(Wallet.getBalance()))}</div>`,
+  [{t:'取消',c:'gray',fn:()=>{if(curGame())show('sc-lobby')}},{t:'开始匹配',c:'gold',fn:()=>matchStart(game,ri,ddzStart)}]);
+ modal('确认入场',`<div style="text-align:center;font-size:16px;font-weight:800;letter-spacing:2px">${gn} · ${r.name}</div><div class="brk" style="margin-top:10px;line-height:1.9"><div><span>入场费（仅真人玩家支付）</span><span>${AVS(fmt(r.fee))}</span></div><div><span>奖池 = 真人玩家入场费之和</span><span>${AVS(fmt(e.pot))}</span></div><div><span>我胡牌：获得 50%</span><span class="pos">${AVS(fmt(e.win))}</span></div><div><span>销毁（我方胜 / AI 胜）</span><span class="neg">🔥 ${AVS(fmt(e.burnW))} / ${AVS(fmt(e.burnL))}</span></div></div><div style="font-size:12px;margin-top:8px;color:var(--txt2);text-align:center;line-height:1.6">匹配成功后才扣除入场费，取消匹配不扣费。<br>AI 机器人座位不出入场费、也不分奖池；奖池 50% 永久销毁，另 50% 按获胜方座位平分（向下取整），落在 AI 座位上的份额与余数一并销毁；若 AI 获胜则这 50% 也销毁。<br>流局：50% 销毁，50% 平均退还真人玩家。<br>当前余额 ${AVS(fmt(Wallet.getBalance()))}</div>`,
   [{t:'取消',c:'gray',fn:()=>{if(curGame())show('sc-lobby')}},{t:'开始匹配',c:'gold',fn:()=>matchStart(game,ri,game==='ddz'?ddzStart:mjStart)}]);
 }
 function pickRivals(k,room,excl){const f=ROOMS[room].fee,pool=shuffle(S.rivals.filter(r=>!(excl||[]).includes(r))).slice(0,k);pool.forEach(r=>{if(r.bal<f*10)r.bal=f*30+rnd(20)*f;r.real=false;r.sim=false;r.ai=true});return pool}
@@ -2058,14 +2060,15 @@ function burnModal(){
  const top=[...S.rivals.map(r=>({n:r.name,v:r.burned||0})),{n:S.name+'（我）',v:Math.round(S.burned),me:1}].sort((a,b)=>b.v-a.v).slice(0,8);
  modal('🔥 销毁统计',`<div class="burnfx"><div class="flame"><i></i><i></i></div><div><div class="bv">${AVS(fmt(S.netBurn))}</div><small>全服累计销毁（模拟数据）</small></div></div><div class="brk" style="margin-top:8px;line-height:1.9"><div><span>我的累计销毁贡献</span><span>${AVS(fmt(S.burned))}</span></div><div><span>其中商城兑换</span><span>${AVS(fmt(S.hist.filter(h=>h.type==='shop').reduce((a,h)=>a-h.amt,0)))}</span></div><div><span>其中入场费销毁份额</span><span>${AVS(fmt(S.hist.filter(h=>h.type==='burn').reduce((a,h)=>a+(h.burn||0),0)))}</span></div></div><div style="margin-top:10px;font-weight:800;color:var(--gold3)">销毁榜 <span class="sim">（其他玩家为模拟）</span></div>${top.map((x,i)=>`<div style="display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid rgba(255,255,255,.06);${x.me?'color:var(--gold3);font-weight:800':''}"><span>${['🥇','🥈','🥉'][i]||(i+1)+'.'} ${esc(x.n)}</span><span>${AVS(fmt(x.v))}</span></div>`).join('')}`,[{t:'关闭',c:'gray'}]);
 }
-const NOTICES=['【测试版】当前为测试版本，AVA 余额通过「我的 → 设置 → 测试工具」设置；正式版将接入 AVA 生态账户余额。','【新玩法】中国象棋上线：楚河汉界 1v1，AI 分初级 / 中级 / 高级三档棋力。','【玩法】入场费 初级 10 / 中级 50 / 高级 100 AVA；斗地主 / 麻将获胜方拿走奖池 50%，另 50% 永久销毁（麻将流局退还 50%）；台球 / 中国象棋 1v1：真人局胜者得 75%、销毁 25%，对 AI 胜全额退还、负退 50%。','【商城】全场装扮价格调整为原价的 1/80，兑换消耗的 AVA 全部计入销毁。'];
+const NOTICES=['【测试版】当前为测试版本，AVA 余额通过「我的 → 设置 → 测试工具」设置；正式版将接入 AVA 生态账户余额。','【新玩法】中国象棋上线：楚河汉界 1v1，AI 分初级 / 中级 / 高级三档棋力。','【玩法】入场费 初级 10 / 中级 50 / 高级 100 AVA；斗地主：3 名真人时地主胜拿 50%、农民胜各拿 40%，有 AI 时不论输赢全额退还入场费；麻将获胜方拿走奖池 50%，另 50% 永久销毁（流局退还 50%）；台球 / 中国象棋 1v1：真人局胜者得 75%、销毁 25%，对 AI 胜全额退还、负退 50%。','【商城】全场装扮价格调整为原价的 1/80，兑换消耗的 AVA 全部计入销毁。'];
 function noticeModal(){modal('📣 公告 / 客服',NOTICES.map(n=>`<div class="rec" style="margin:0 0 8px;font-size:12.5px;line-height:1.6">${n}</div>`).join('')+`<div class="sim" style="text-align:center">客服：测试版暂无在线客服，问题请连同版本号（${VERSION}）反馈给测试负责人。</div>`,[{t:'知道了',c:'gold'}])}
 
-/* ================= ECONOMY (v8): only REAL players pay into the pot =================
+/* ================= ECONOMY (v8/v11.2): only REAL players pay into the pot =================
  * pot = fee × (number of real players). AI/机器人 seats pay nothing and win nothing.
- * 50% of the pot is always burned; the other 50% is split (floor) over ALL seats of the winning side; shares that fall
- * on AI seats are burned (backend v2 rule). If only AI won, that 50% is burned too. Remainders are burned.
- * 1 real + AI, tier 10/50/100: ddz landlord win 5/25/50, farmers win 2/12/25, mj hu 5/25/50, mj draw refund 5/25/50, 台球 5/25/50. */
+ * 麻将 / 默认 classic：奖池 50% 销毁，另 50% 按获胜方座位平分（向下取整），AI 份额与余数销毁。
+ * 斗地主（v11.2 模式 'ddz'）：3 名真人时地主胜得 50%、农民胜各得 40%（合计 80%），余数销毁；
+ *   只要桌上有任一 AI，每位真人不论胜负（含放弃）全额退还入场费，不销毁。
+ * 台球/象棋见下方 DUEL。 */
 const isReal=p=>!!p&&!p.ai;
 function realSplit(pl,fee,winners){
  const realIdx=pl.map((p,i)=>i).filter(i=>isReal(pl[i]));const pot=fee*realIdx.length;
@@ -2101,12 +2104,49 @@ function duelLines(fee){const me={me:true},hu={name:'B'},ai={ai:true};
  const rw=duelSplit([me,hu],fee,{winner:0}),rd=duelSplit([me,hu],fee,{draw:true}),aw=duelSplit([me,ai],fee,{winner:0}),al=duelSplit([me,ai],fee,{winner:1}),ad=duelSplit([me,ai],fee,{draw:true});
  return {pot:rw.pot,win:rw.gain[0],burnW:rw.burned,draw:rd.gain[0],burnD:rd.burned,aiWin:aw.gain[0],aiLoss:al.gain[0],aiLossBurn:al.burned,aiDraw:ad.gain[0]}}
 function chargeEntry(pl,fee,note){pl.forEach(p=>{if(isReal(p))addBal(p,-fee,'entry',{note})})}
-function econLines(game,fee){ // human-readable payout lines for 1 real player (this test build)
+/* ===== v11.2 DDZ ECONOMY（结算模式 'ddz'）=====
+ * 3 名真人：奖池 = 3×入场费；地主胜 floor(pot×50%)；农民胜合计 floor(pot×80%)，两人各一半，余数销毁。
+ * 只要有 AI：每位真人（不论胜负，含放弃）退还 floor(fee×aiRefund)（默认全额），销毁 0。 */
+const DDZ_CFG={landlordWin:.5,farmerWinTotal:.8,aiRefund:1};
+function ddzSplit(pl,fee,res,forfeitSeats){
+ const fos=forfeitSeats||[];
+ const realIdx=pl.map((p,i)=>i).filter(i=>isReal(pl[i]));const pot=fee*realIdx.length,gain=pl.map(()=>0);
+ const hasAi=pl.some(p=>p&&p.ai),ll=res.landlordSeat,sideLoss=fos.length&&!hasAi;
+ const llWin=sideLoss?!fos.includes(ll):res.winner==='landlord';
+ let kind,paid=0,rem=0;
+ if(hasAi){const each=Math.floor(fee*DDZ_CFG.aiRefund);realIdx.forEach(i=>gain[i]=each);kind='ai-refund';paid=each*realIdx.length}
+ else if(llWin){const prize=Math.floor(pot*DDZ_CFG.landlordWin);if(!fos.includes(ll))gain[ll]=prize;kind='rr-ll';paid=gain[ll];rem=prize-paid}
+ else{const prize=Math.floor(pot*DDZ_CFG.farmerWinTotal),farmers=[0,1,2].filter(s=>s!==ll),each=farmers.length?Math.floor(prize/farmers.length):0;
+  farmers.forEach(s=>{if(!fos.includes(s))gain[s]=each});kind='rr-fm';paid=gain.reduce((a,b)=>a+b,0);rem=prize-each*farmers.length}
+ return {mode:'ddz',kind,pot,gain,paid,rem,burned:pot-paid,realN:realIdx.length,vsAI:hasAi,llWin,aiWin:hasAi&&!realIdx.includes(llWin?ll:[0,1,2].find(s=>s!==ll))};
+}
+function ddzLines(fee){
+ const me={me:true},b={name:'B'},c={name:'C'},ai={ai:true};
+ const ll=ddzSplit([me,b,c],fee,{landlordSeat:0,winner:'landlord'});
+ const fm=ddzSplit([me,b,c],fee,{landlordSeat:2,winner:'farmers'});
+ const aiR=ddzSplit([me,ai,ai],fee,{landlordSeat:0,winner:'landlord'});
+ return {pot:ll.pot,win:ll.gain[0],ll:ll.gain[0],llBurn:ll.burned,farm:fm.gain[0],farmBurn:fm.burned,aiRefund:aiR.gain[0],aiBurn:aiR.burned,burnW:ll.burned,burnL:aiR.burned};
+}
+function ddzBox(sp,fee,myNet){
+ const k=sp.kind;
+ const line=k==='ai-refund'?['有 AI：不论输赢，真人全额退还入场费',AVS(fmt(sp.gain.filter(Boolean)[0]||0)),'pos']:k==='rr-ll'?['3 名真人 · 地主获胜（奖池 50%）',AVS(fmt(Math.floor(sp.pot*DDZ_CFG.landlordWin))),'pos']:['3 名真人 · 农民获胜（各 40%）',AVS(fmt(Math.floor(Math.floor(sp.pot*DDZ_CFG.farmerWinTotal)/2))),'pos'];
+ return `<div class="brk"><div><span>${sp.vsAI?'入场费（有 AI，AI 不出入场费）':'奖池（3 名真人 × '+fmt(fee)+'）'}</span><span>${AVS(fmt(sp.pot))}</span></div><div><span>${line[0]}</span><span class="${line[2]}">${line[1]}</span></div>
+ <div style="border-top:1px solid rgba(255,255,255,.2);margin-top:4px;padding-top:4px"><b>我的净变化</b><b class="${myNet>0?'pos':myNet<0?'neg':''}">${AVS(sgn(myNet))}</b></div><div><span>当前余额</span><span>${AVS(fmt(Wallet.getBalance()))}</span></div></div>
+ <div class="burnfx"><div class="flame"><i></i><i></i></div><div><div class="bv">${AVS(fmt(sp.burned))}</div><small>${sp.burned?'本局销毁':'本局无销毁（有 AI，入场费已退还）'}</small></div></div>`}
+function ddzConfirmBox(fee){const e=ddzLines(fee);
+ return `<div class="brk" style="margin-top:10px;line-height:1.85"><div><span>入场费（仅真人玩家支付）</span><span>${AVS(fmt(fee))}</span></div>
+ <div><span>3 名真人 · 奖池</span><span>${AVS(fmt(e.pot))}</span></div>
+ <div><span>3 名真人 · 地主获胜</span><span class="pos">地主得 ${AVS(fmt(e.ll))} · 销毁 ${AVS(fmt(e.llBurn))}</span></div>
+ <div><span>3 名真人 · 农民获胜</span><span class="pos">每位农民 ${AVS(fmt(e.farm))} · 销毁 ${AVS(fmt(e.farmBurn))}</span></div>
+ <div><span>有 AI · 不论输赢（含退出）</span><span class="pos">全额退还 ${AVS(fmt(e.aiRefund))}，不销毁</span></div>
+ <div><span>中途退出</span><span>3 真人按负局结算；有 AI 仍全额退还</span></div></div>`}
+function econLines(game,fee){
  if(DUEL_GAMES.includes(game))return duelLines(fee);
+ if(game==='ddz')return ddzLines(fee);
  const me=[{me:true}],ai={ai:true};
- const pl=game==='ddz'?[me[0],ai,ai]:game==='mj'?[me[0],ai,ai,ai]:[me[0],ai];
- const w=realSplit(pl,fee,[0]),l=realSplit(pl,fee,[1]),f=game==='ddz'?realSplit(pl,fee,[0,1]):w;
- return {pot:w.pot,win:w.each,burnW:w.burned,burnL:l.burned,farm:f.each,burnF:f.burned};
+ const pl=game==='mj'?[me[0],ai,ai,ai]:[me[0],ai];
+ const w=realSplit(pl,fee,[0]),l=realSplit(pl,fee,[1]);
+ return {pot:w.pot,win:w.each,burnW:w.burned,burnL:l.burned,farm:w.each,burnF:w.burned};
 }
 
 /* ================= MATCHMAKING =================
@@ -2162,6 +2202,8 @@ const DUEL_FORFEIT_TXT='中途退出视为认输（按负局结算）';
 function forfeitAsk(game,doIt){
  const nm=GNAME[game]||'';
  if(DUEL_GAMES.includes(game)){const fee=ROOMS[(game==='bil'?B:XG).room].fee,e=duelLines(fee);return modal('退出对局？',`<div style="text-align:center;line-height:1.8"><b style="color:#ffb37a">${DUEL_FORFEIT_TXT}</b><br><small style="color:var(--txt2)">对 AI：退还 50%（${AVS(fmt(e.aiLoss))}），销毁 ${AVS(fmt(e.aiLossBurn))}；对真人：对手获得奖池 75%，25% 销毁</small></div>`,[{t:'继续游戏',c:'gray'},{t:'确认退出',c:'red',fn:doIt}])}
+ if(game==='ddz'){const fee=ROOMS[D.room].fee,e=ddzLines(fee),hasAi=(D.g&&D.g.pl||[]).some(p=>p.ai);
+  return modal('退出对局？',`<div style="text-align:center;line-height:1.8"><b style="color:#ffb37a">${hasAi?'中途退出：本局有 AI，入场费将全额退还':FORFEIT_TXT}</b><br><small style="color:var(--txt2)">${hasAi?'有 AI 时不论输赢（含退出）都拿回入场费 '+AVS(fmt(e.aiRefund))+'，不销毁':'3 名真人时按负局结算：地主退出则农民各得 '+AVS(fmt(e.farm))+'；农民退出则地主得 '+AVS(fmt(e.ll))}</small></div>`,[{t:'继续游戏',c:'gray'},{t:'确认退出',c:'red',fn:doIt}])}
  modal('退出对局？',`<div style="text-align:center;line-height:1.8"><b style="color:#ffb37a">${FORFEIT_TXT}</b><br><small style="color:var(--txt2)">${game==='m3'?'本次挑战不提交成绩，入场费留在今日奖池':'奖池 50% 销毁，另 50% 由其余玩家平分（AI 份额销毁）'}</small></div>`,
   [{t:'继续游戏',c:'gray'},{t:'确认退出',c:'red',fn:doIt}]);
 }
@@ -2169,6 +2211,7 @@ function forfeitSettle(game,o,room){
  const g=o.g,fee=ROOMS[room].fee,label=GNAME[game],n=g.pl.length;
  clearInterval(o.timer);o.resolve=null;o.autoFn=null;o.tok++;g.phase='over';
  if(DUEL_GAMES.includes(game))return duelForfeit(game,o,room);
+ if(game==='ddz')return ddzForfeit(o,room);
  const remain=[];for(let i=1;i<n;i++)remain.push(i);
  const sp=realSplit(g.pl,fee,remain);const seat=Math.floor(sp.prize/remain.length);
  g.pl.forEach((p,i)=>{if(sp.gain[i])addBal(p,sp.gain[i],'win',{note:`${label} · ${ROOMS[room].name} 对手放弃 · 奖池分成`})});
@@ -2192,6 +2235,22 @@ function forfeitSettle(game,o,room){
  return DBG.lastResult;
 }
 
+function ddzForfeit(o,room){
+ const g=o.g,fee=ROOMS[room].fee,ll=g.ll<0?0:g.ll,sp=ddzSplit(g.pl,fee,{landlordSeat:ll,winner:'farmers'},[0]);
+ const typ=sp.vsAI?'refund':'win';
+ g.pl.forEach((p,i)=>{if(sp.gain[i])addBal(p,sp.gain[i],typ,{note:`斗地主 · ${ROOMS[room].name} ${sp.vsAI?'中途退出 · 入场费退还':'对手放弃 · 角色分成'}`})});
+ if(sp.burned)Wallet.note('burn',{note:`斗地主 · ${ROOMS[room].name} 中途放弃 · 奖池销毁`,burn:sp.burned});
+ const acct=potCheck('ddz',g.pl,g.bal0,sp.pot,sp.gain,sp.burned);const net=sp.gain.map((x,i)=>x-(isReal(g.pl[i])?fee:0));
+ S.games++;S.losses++;const st=S.stats.ddz=S.stats.ddz||{n:0,w:0};st.n++;taskInc('play');
+ S.records.unshift({g:'ddz',room,res:'放弃',role:'中途退出',net:net[0],pot:sp.pot,burned:sp.burned,t:Date.now(),forfeit:1});if(S.records.length>100)S.records.length=100;
+ S.burned+=sp.burned;S.netBurn+=sp.burned;save();
+ MatchTransport.n=3;const rep=MatchTransport.report('ddz',{winners:[1,2],meta:{forfeit:MatchTransport.absSeat(0),landlord:MatchTransport.absSeat(ll),mode:'ddz'}});rep.api='POST /api/match/forfeit';
+ DBG.lastResult={game:'ddz',forfeit:true,mode:'ddz',kind:sp.kind,fee,pot:sp.pot,burned:sp.burned,gain:sp.gain,net,acct,realN:sp.realN};DBG.forfeits=(DBG.forfeits||0)+1;
+ sfx('lose');
+ const html=`<div class="resbanner lose">已 放 弃</div><div style="text-align:center;font-size:13px;margin-bottom:8px;color:#ffb37a">${sp.vsAI?'中途退出：本局有 AI，入场费已全额退还':FORFEIT_TXT}</div>${ddzBox(sp,fee,net[0])}`;
+ modal('🏳️ 已退出对局',html,[{t:'返回大厅',c:'gold',fn:()=>show('sc-lobby')}],'result');
+ return DBG.lastResult;
+}
 function duelForfeit(game,o,room){
  const g=o.g,fee=ROOMS[room].fee,label=GNAME[game],sp=duelSplit(g.pl,fee,{winner:1});
  g.pl.forEach((p,i)=>{if(sp.gain[i])addBal(p,sp.gain[i],i===0?'refund':'win',{note:`${label} · ${ROOMS[room].name} ${i===0?'认输 · 退还 50%':'对手认输 · 奖池 75%'}`})});
@@ -2516,10 +2575,11 @@ function ddzSettle(){
  if(llWin&&fs.every(f=>g.plays[f]===0))spring='春天';
  if(!llWin&&g.plays[ll]===1)spring='反春';
  const mult=g.bid*2**g.bombs*(spring?2:1);
- const sp=realSplit(g.pl,fee,llWin?[ll]:fs),pot=sp.pot,prize=sp.prize,burned=sp.burned,rem=sp.rem;
+ const sp=ddzSplit(g.pl,fee,{landlordSeat:ll,winner:llWin?'landlord':'farmers'}),pot=sp.pot,prize=sp.paid,burned=sp.burned,rem=sp.rem||0;
  const gain=sp.gain;
- g.pl.forEach((p,i)=>{if(gain[i])addBal(p,gain[i],'win',{note:`斗地主 · ${room.name} 奖池奖励`})});
- Wallet.note('burn',{note:`斗地主 · ${room.name} 奖池销毁${sp.aiWin?'（AI 获胜，真人奖池全部销毁）':''}`,burn:burned});
+ const typ=sp.vsAI?'refund':'win';
+ g.pl.forEach((p,i)=>{if(gain[i])addBal(p,gain[i],typ,{note:`斗地主 · ${room.name} ${sp.vsAI?'入场费退还':'奖池奖励'}`})});
+ if(burned)Wallet.note('burn',{note:`斗地主 · ${room.name} 奖池销毁`,burn:burned});
  const net=gain.map((x,i)=>x-(isReal(g.pl[i])?fee:0));const meSideWin=llWin?ll===0:ll!==0;
  const hon=[0,0,0];if(llWin)hon[ll]=mult*2;else fs.forEach(f=>hon[f]=mult);
  honorAdd(g.pl,hon);
@@ -2536,14 +2596,15 @@ function ddzSettle(){
  setTimeout(()=>{sfx(meWin?'win':'lose');if(meWin)fxWin();else fxLose();setTimeout(()=>sfx(meWin?'coin':'burn'),700)},spring?700:0);
  const rows=g.pl.map((p,i)=>`<tr><td>${p.me?'我':esc(p.name)}${p.ai?'<span class="aitag">AI</span>':''}</td><td>${i===ll?'地主':'农民'}</td><td>${isReal(p)?'-'+fmt(fee):'0'}</td><td>${gain[i]?'+'+fmt(gain[i]):'0'}</td><td class="${net[i]>0?'pos':net[i]<0?'neg':''}">${sgn(net[i])}</td><td>${p.ai?'—':AVS(fmt(bal(p)))}</td></tr>`).join('');
  const left=[1,2].filter(s=>g.hands[s].length).map(s=>`<div style="font-size:11px;margin-top:6px">${g.pl[s].name} 剩余：</div><div class="crow">${rowHTML(sortC(g.hands[s].slice()),300,30,'sm')}</div>`).join('');
- const html=`<div class="rL"><div class="resbanner ${meWin?'win':'lose'}">${meWin?'胜 利':'失 败'}</div><div style="text-align:center;font-size:15px;margin-bottom:8px">${llWin?'地主获胜':'农民获胜'}${spring?` · <b style="color:#ff5252">${spring}！</b>`:''}</div>
- <div class="brk"><div><span>奖池（真人 ${sp.realN} 人 × ${fmt(fee)}，AI 不出）</span><span>${AVS(fmt(pot))}</span></div><div><span>获胜方真人 50%${llWin?'（地主）':'（农民）'}</span><span class="${sp.aiWin?'neg':'pos'}">${sp.aiWin?'AI 获胜 → 销毁':AVS(fmt(sp.paid))}</span></div>${!sp.aiWin&&sp.winN>1?`<div><span>获胜方 ${sp.winN} 席平分（向下取整）</span><span class="pos">${AVS(fmt(sp.each))} / 席</span></div>`:''}${sp.aiShare?`<div><span>AI 农民份额（销毁）</span><span class="neg">🔥 ${AVS(fmt(sp.aiShare))}</span></div>`:''}${rem?`<div><span>取整余数（并入销毁）</span><span class="neg">🔥 ${AVS(fmt(rem))}</span></div>`:''}
- <div style="border-top:1px solid rgba(255,255,255,.2);margin-top:4px;padding-top:4px"><b>我的净变化</b><b class="${net[0]>=0?'pos':'neg'}" style="display:flex;align-items:center">${AVS(sgn(net[0]))}</b></div><div><span>当前余额</span><span>${AVS(fmt(Wallet.getBalance()))}</span></div></div>
- <div class="burnfx"><div class="flame"><i></i><i></i></div><div><div class="bv">${AVS(fmt(burned))}</div><small>${sp.aiWin?'奖池 100%（AI 获胜）':'奖池 50%'}${sp.aiShare?` + AI 份额 ${sp.aiShare}`:''}${rem?` + 取整余数 ${rem}`:''} 已永久销毁</small></div></div></div><div class="rR">
+ const shareLine=sp.vsAI?`<div><span>有 AI：不论输赢，真人全额退还入场费</span><span class="pos">${AVS(fmt(sp.paid))}</span></div>`:(llWin?`<div><span>3 名真人 · 地主获胜（奖池 50%）</span><span class="pos">${AVS(fmt(sp.paid))}</span></div>`:`<div><span>3 名真人 · 农民获胜（各 40%）</span><span class="pos">${AVS(fmt(sp.paid))}</span></div>${sp.realN>1?`<div><span>两位农民平分（向下取整）</span><span class="pos">${AVS(fmt(Math.floor(Math.floor(pot*DDZ_CFG.farmerWinTotal)/2)))} / 人</span></div>`:''}`);
+ const html=`<div class="rL"><div class="resbanner ${meWin?'win':'lose'}">${meWin?'胜 利':'失 败'}</div><div style="text-align:center;font-size:15px;margin-bottom:8px">${llWin?'地主获胜':'农民获胜'}${spring?` · <b style="color:#ff5252">${spring}！</b>`:''}${sp.vsAI?' · <span style="color:var(--txt2);font-size:13px">有 AI，入场费已退还</span>':''}</div>
+ <div class="brk"><div><span>${sp.vsAI?'入场费（真人 '+sp.realN+' 人 × '+fmt(fee)+'，AI 不出）':'奖池（3 名真人 × '+fmt(fee)+'）'}</span><span>${AVS(fmt(pot))}</span></div>${shareLine}${rem?`<div><span>取整余数（并入销毁）</span><span class="neg">🔥 ${AVS(fmt(rem))}</span></div>`:''}
+ <div style="border-top:1px solid rgba(255,255,255,.2);margin-top:4px;padding-top:4px"><b>我的净变化</b><b class="${net[0]>0?'pos':net[0]<0?'neg':''}" style="display:flex;align-items:center">${AVS(sgn(net[0]))}</b></div><div><span>当前余额</span><span>${AVS(fmt(Wallet.getBalance()))}</span></div></div>
+ <div class="burnfx"><div class="flame"><i></i><i></i></div><div><div class="bv">${AVS(fmt(burned))}</div><small>${sp.vsAI?'本局无销毁（有 AI，入场费已退还）':(llWin?'奖池 50%':'奖池 20%')+(rem?` + 取整余数 ${rem}`:'')+' 已永久销毁'}</small></div></div></div><div class="rR">
  <div class="brk" style="margin-top:6px;font-size:12px;color:#d9cfff"><div><span>战绩 · 荣誉倍数（不影响 AVA）</span><span></span></div><div><span>叫分 ×${g.bid} · 炸弹 ×${2**g.bombs} · 春天 ×${spring?2:1}</span><span class="mult">×${mult}</span></div><div><span>我获得荣誉分</span><span>+${hon[0]}</span></div></div>
  <table class="res"><tr><th>玩家</th><th>身份</th><th>入场费 (AVA)</th><th>获得 (AVA)</th><th>净变化 (AVA)</th><th>余额</th></tr>${rows}</table>${left}</div>`;
  resultModal('ddz',D.room,g.pl,meWin?'🎉 你赢了':'😢 你输了',html,D);
- DBG.lastResult={game:'ddz',llWin,rem,fee,pot,prize,burned,gain,net,acct,aiWin:sp.aiWin,realN:sp.realN,meWin,mult,spring,bombs:g.bombs,bid:g.bid};
+ DBG.lastResult={game:'ddz',mode:'ddz',kind:sp.kind,vsAI:sp.vsAI,llWin,rem,fee,pot,prize,burned,gain,net,acct,aiWin:false,realN:sp.realN,meWin,mult,spring,bombs:g.bombs,bid:g.bid};
  MatchTransport.n=3;MatchTransport.report('ddz',{winners:llWin?[ll]:fs,meta:{landlord:MatchTransport.absSeat(ll),bid:g.bid,bombs:g.bombs,spring}});DBG.ddzDone=(DBG.ddzDone||0)+1;
 }
 $('#dz-exit').onclick=()=>{if(D.g&&D.g.phase!=='over'&&$('#sc-ddz').classList.contains('on'))return forfeitAsk('ddz',()=>{if(D.g&&D.g.phase!=='over')forfeitSettle('ddz',D,D.room)});D.tok++;show('sc-lobby')};
@@ -4421,10 +4482,10 @@ function renderLobby(){
  $$('.gcard').forEach(c=>c.classList.toggle('sel',c.dataset.game===LB.game));
  const b=Wallet.getBalance(),gm=LB.game;
  $('#l-tiers').innerHTML=ROOMS.map((r,i)=>{const lk=roomLocked(i),e=gm==='m3'?null:econLines(gm,r.fee);const need=roomNeed(i),tgt=LEVEL_CFG.need[need-1];
-  return `<div class="tier ${i===LB.tier?'sel':''} ${!lk&&b<r.fee?'lack':''} ${lk?'locked':''}" data-t="${i}"><b>${lk?'🔒 ':''}${r.name}</b><div class="fee">${AVS(fmt(r.fee))}</div><small>${lk?`达到 Lv${need} 解锁<div class="xpbar"><i style="width:${Math.min(100,(S.xp||0)/tgt*100)}%"></i></div>${fmt(S.xp||0)}/${fmt(tgt)} XP`:gm==='m3'?`今日奖池 ${AVS(fmt(m3PoolOf(m3RoundId(),i,true).pool))}<br>前 10% 瓜分 50%`:(DUEL_GAMES.includes(gm)?`真人局 获胜得 ${AVS(fmt(e.win))}<br>对 AI 胜全退 · 负退 ${fmt(e.aiLoss)}`:`奖池 ${AVS(fmt(e.pot))}<br>获胜得 ${AVS(fmt(e.win))}${gm==='ddz'?` · 农民 ${fmt(e.farm)}`:''}`)}</small></div>`}).join('');
+  return `<div class="tier ${i===LB.tier?'sel':''} ${!lk&&b<r.fee?'lack':''} ${lk?'locked':''}" data-t="${i}"><b>${lk?'🔒 ':''}${r.name}</b><div class="fee">${AVS(fmt(r.fee))}</div><small>${lk?`达到 Lv${need} 解锁<div class="xpbar"><i style="width:${Math.min(100,(S.xp||0)/tgt*100)}%"></i></div>${fmt(S.xp||0)}/${fmt(tgt)} XP`:gm==='m3'?`今日奖池 ${AVS(fmt(m3PoolOf(m3RoundId(),i,true).pool))}<br>前 10% 瓜分 50%`:(DUEL_GAMES.includes(gm)?`真人局 获胜得 ${AVS(fmt(e.win))}<br>对 AI 胜全退 · 负退 ${fmt(e.aiLoss)}`:(gm==='ddz'?`3 真人 地主 ${AVS(fmt(e.ll))} / 农民各 ${fmt(e.farm)}<br>有 AI：不论输赢全额退还`:`奖池 ${AVS(fmt(e.pot))}<br>获胜得 ${AVS(fmt(e.win))}`))}</small></div>`}).join('');
  $$('#l-tiers .tier').forEach(t=>t.onclick=()=>{const i=+t.dataset.t;if(roomLocked(i))return lockModal(i);LB.tier=i;renderLobby()});
  $('#l-quick').innerHTML=gm==='m3'?`💎 进入消消乐 · ${ROOMS[LB.tier].name}挑战赛`:`⚡ 快速开始 · ${GNAME[gm]} ${ROOMS[LB.tier].name}`;
- const tsec=$('#l-tiers').previousElementSibling;if(tsec)tsec.innerHTML=gm==='m3'?'选择档位<small>每日挑战赛 · 入场费 10 / 50 / 100 · 00:00 结算</small>':(DUEL_GAMES.includes(gm)?'选择房间<small>入场费 10 / 50 / 100 · 1v1 · 胜者得奖池 75%</small>':'选择房间<small>入场费 10 / 50 / 100 · 仅真人出资 · 50% 销毁</small>');
+ const tsec=$('#l-tiers').previousElementSibling;if(tsec)tsec.innerHTML=gm==='m3'?'选择档位<small>每日挑战赛 · 入场费 10 / 50 / 100 · 00:00 结算</small>':(DUEL_GAMES.includes(gm)?'选择房间<small>入场费 10 / 50 / 100 · 1v1 · 胜者得奖池 75%</small>':(gm==='ddz'?'选择房间<small>入场费 10 / 50 / 100 · 3 真人地主 50% / 农民各 40% · 有 AI 全额退还</small>':'选择房间<small>入场费 10 / 50 / 100 · 仅真人出资 · 50% 销毁</small>'));
 }
 RENDER['sc-lobby']=renderLobby;
 $$('.gcard').forEach(c=>c.onclick=()=>{LB.game=c.dataset.game;if(roomLocked(LB.tier))LB.tier=0;renderLobby();if(LB.game==='m3')return m3Hub(LB.tier);joinConfirm(LB.game,LB.tier)});
@@ -4572,18 +4633,23 @@ $('#rules').innerHTML=`
 
 <h4>匹配与入场费奖池（销毁机制）</h4>斗地主 / 麻将 / 台球 / 中国象棋：点击「开始匹配」后进入匹配界面（最多等待 ${MATCH_CFG.matchWaitSeconds} 秒），<b>匹配成功开局时才扣除入场费</b>，取消匹配不扣费。测试版暂无真人玩家，空位由 <b>AI 机器人</b>（头像带「AI」标记）补齐。<br>
 初级场 入场费 <b>10</b> · 中级场 <b>50</b> · 高级场 <b>100</b> AVA。<b>只有真人玩家支付入场费</b>，AI 座位不出钱、也不分奖池：<b>奖池 = 真人玩家入场费之和</b>。<br>
-· 奖池 <b>50% 永久销毁</b>；另 50% 按<b>获胜方座位</b>平分（斗地主农民胜为 2 席），<b>落在 AI 座位上的份额一并销毁</b>，只有真人拿到奖励。<br>
-· 如果获胜方没有真人（AI 获胜），这 50% <b>也全部销毁</b>。<br>
-· <b>麻将流局</b>：50% 销毁，50% 平均退还给真人玩家。<br>
-· <b>AVA 只按整数结算</b>：平分不尽时向下取整，<b>余数一并销毁</b>。商城兑换、消消乐道具花费的 AVA 也全部销毁。<br>
-<table class="res" style="margin:6px 0"><tr><th>房间</th><th>入场费</th><th>奖池（1 真人 + AI）</th><th>地主胜 / 胡牌</th><th>斗地主农民胜</th><th>麻将流局退还</th><th>AI 获胜</th></tr>${ROOMS.map(r=>{const e=econLines('ddz',r.fee),m=realRefund([{me:true},{ai:true},{ai:true},{ai:true}],r.fee);return `<tr><td>${r.name}</td><td>${r.fee}</td><td>${e.pot}</td><td>${e.win}</td><td>${e.farm}</td><td>${m.each}</td><td>全部销毁</td></tr>`}).join('')}</table>
-例：中级场 3 名真人斗地主（奖池 150），农民方 2 名真人获胜 → 50% = 75，每人 37，余 1 与另一半 75 一起销毁（共 76）。<br><h4>台球 / 中国象棋 · 1v1 对决结算（与其他玩法不同）</h4>
+· <b>AVA 只按整数结算</b>：向下取整，<b>余数一并销毁</b>。商城兑换、消消乐道具花费的 AVA 也全部销毁。
+<h4>斗地主结算</h4>
+· <b>3 名真人</b>：奖池 = 3 × 入场费。<b>地主获胜拿走奖池 50%</b>，另 50% 永久销毁；<b>农民获胜合计拿走 80%</b>（两位农民各 40%），另 20% 销毁。<br>
+· <b>只要桌上有 AI</b>（无论几名真人）：每位真人<b>不论输赢都拿回自己的入场费</b>，<b>什么都不销毁</b>。中途退出同样全额退还。AI 不出资、不分奖。<br>
+<table class="res" style="margin:6px 0"><tr><th>房间</th><th>入场费</th><th>3 真人奖池</th><th>地主胜得</th><th>地主胜销毁</th><th>农民胜(各)</th><th>农民胜销毁</th><th>有 AI（不论输赢）</th></tr>${ROOMS.map(r=>{const e=ddzLines(r.fee);return `<tr><td>${r.name}</td><td>${r.fee}</td><td>${e.pot}</td><td>${e.ll}</td><td>${e.llBurn}</td><td>${e.farm}</td><td>${e.farmBurn}</td><td>全退 ${e.aiRefund}，销毁 0</td></tr>`}).join('')}</table>
+例：初级场 3 名真人（奖池 30）：地主胜得 15，销毁 15；农民胜每人 12，销毁 6。若有 AI 补位，真人无论胜负都拿回 10，净变化 0。
+<h4>麻将结算</h4>
+· 奖池 <b>50% 永久销毁</b>；另 50% 由胡牌者获得。<b>落在 AI 座位上的份额一并销毁</b>；若 AI 胡牌，这 50% 也全部销毁。<br>
+· <b>流局</b>：50% 销毁，50% 平均退还给真人玩家。<br>
+<table class="res" style="margin:6px 0"><tr><th>房间</th><th>入场费</th><th>奖池（1 真人 + AI）</th><th>胡牌</th><th>流局退还</th><th>AI 胡牌</th></tr>${ROOMS.map(r=>{const e=econLines('mj',r.fee),m=realRefund([{me:true},{ai:true},{ai:true},{ai:true}],r.fee);return `<tr><td>${r.name}</td><td>${r.fee}</td><td>${e.pot}</td><td>${e.win}</td><td>${m.each}</td><td>全部销毁</td></tr>`}).join('')}</table>
+<h4>台球 / 中国象棋 · 1v1 对决结算（与其他玩法不同）</h4>
 · <b>真人 vs 真人</b>：奖池 = 2 × 入场费；<b>胜者获得奖池 75%</b>，25% 永久销毁；<b>和棋</b>每人退还本人入场费的 75%，其余销毁。<br>
 · <b>真人 vs AI</b>（AI 不出入场费）：<b>获胜全额退还入场费、不销毁</b>；<b>失利 50% 销毁、50% 退还</b>；和棋全额退还。<br>
 · 中途退出视为认输，按负局结算。金额向下取整，余数销毁。<br>
 <table class="res" style="margin:6px 0"><tr><th>房间</th><th>入场费</th><th>真人局胜者得</th><th>真人局销毁</th><th>和棋各退</th><th>对 AI 胜</th><th>对 AI 负（退 / 销毁）</th></tr>${ROOMS.map(r=>{const e=duelLines(r.fee);return `<tr><td>${r.name}</td><td>${r.fee}</td><td>${e.win}</td><td>${e.burnW}</td><td>${e.draw}</td><td>全退 ${e.aiWin}</td><td>${e.aiLoss} / ${e.aiLossBurn}</td></tr>`}).join('')}</table>
 
-<h4>中途退出（放弃）</h4>对局开始后可随时点「退出」并确认：<b>中途退出视为放弃，入场费不退</b>，也不获得任何奖励。该局奖池（真人入场费）<b>50% 永久销毁</b>，另 50% 由<b>其余玩家平分</b>（向下取整）；落在 AI 座位上的份额与余数一并销毁。斗地主 / 麻将适用（台球、中国象棋中途退出按认输结算，见上方 1v1 对决规则）；对局记录标记为「放弃」。测试版（1 名真人 + AI）退出后本局立即结算；正式版多人局中其余真人继续对局。<br>消消乐挑战赛中途退出：本次<b>不提交成绩</b>，入场费留在当日奖池参与 00:00 结算，同样占用当日挑战次数；免费练习可随时离开。
+<h4>中途退出（放弃）</h4>对局开始后可随时点「退出」并确认。<b>斗地主</b>：3 名真人时退出视为该方失败（地主退出则农民按 80% 分成，农民退出则地主拿 50%）；<b>只要有 AI，退出也全额退还入场费、不销毁</b>。<b>麻将</b>：中途退出视为放弃，入场费不退，奖池 50% 销毁、另 50% 由其余玩家平分（AI 份额与余数销毁）。台球、中国象棋中途退出按认输结算，见上方 1v1 对决规则。对局记录标记为「放弃」。测试版（1 名真人 + AI）退出后本局立即结算；正式版多人局中其余真人继续对局。<br>消消乐挑战赛中途退出：本次<b>不提交成绩</b>，入场费留在当日奖池参与 00:00 结算，同样占用当日挑战次数；免费练习可随时离开。
 <h4>等级与房间解锁</h4>每完成一局 +${LEVEL_CFG.xp.play} 经验，获胜再 +${LEVEL_CFG.xp.win}；消消乐挑战赛按得分获得经验。<b>中级场 Lv${LEVEL_CFG.unlock[1]} 解锁（约 20 局）</b>，<b>高级场 Lv${LEVEL_CFG.unlock[2]} 解锁（约 60 局）</b>，所有游戏通用。等级阈值由服务器配置。
 · 炸弹倍数、麻将番型、每日任务只计入<b>荣誉分</b>，用于排行榜，不改变 AVA。
 <h4>斗地主</h4>54 张牌，三人各 17 张，留 3 张底牌。叫分 1/2/3 分，最高者为地主并获得底牌；无人叫则重新发牌。地主先出，逆时针轮流，须出同牌型且更大的牌或「不出」；炸弹可管任何非炸弹牌型，王炸最大。<br>
